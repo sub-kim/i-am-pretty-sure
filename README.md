@@ -1,2 +1,23 @@
 # i-am-pretty-sure
-i-am-pretty-sure I needed a space like this.
+
+> **i-am-pretty-sure I needed a space like this.**
+
+하루하루의 생각, 감정, 그리고 작은 순간들을 기록하는 개발자 일기장.  
+코드처럼 커밋하고, 글처럼 쌓아갑니다.
+
+---
+
+## 📅 What's this?
+
+이 저장소는 **나의 일상과 생각을 기록하는 공간**입니다.  
+마치 로그를 남기듯, 매일 한 줄씩, 한 커밋씩.
+
+- ✍️ 간단한 일기 / 회고 / 메모
+- 🧠 하루 동안 느낀 점, 배운 점
+- ☁️ 가벼운 고민, 떠오른 아이디어
+- 📆 매일의 흐름을 따라 정리된 기록들
+
+---
+
+## 📂 Structure
+
