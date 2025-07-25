@@ -40,38 +40,33 @@ if exist "!FILE!" (
     echo 헤더 추가 완료!
 )
 
-:: 각 날짜별 템플릿 추가
+:: 날짜별 템플릿 생성
 for /l %%i in (1,1,!LAST_DAY!) do (
     set "DAY=0%%i"
     set "DAY=!DAY:~-2!"
 
-    :: 요일 구하기 (단순히 나열된 요일 목록 사용)
-    set /a "DAY_OF_WEEK=(%%i %% 7) + 1"
-    if !DAY_OF_WEEK! equ 1 set "WEEKDAY=Sun"
-    if !DAY_OF_WEEK! equ 2 set "WEEKDAY=Mon"
-    if !DAY_OF_WEEK! equ 3 set "WEEKDAY=Tue"
-    if !DAY_OF_WEEK! equ 4 set "WEEKDAY=Wed"
-    if !DAY_OF_WEEK! equ 5 set "WEEKDAY=Thu"
-    if !DAY_OF_WEEK! equ 6 set "WEEKDAY=Fri"
-    if !DAY_OF_WEEK! equ 7 set "WEEKDAY=Sat"
-	
+    :: 요일 계산: PowerShell 사용
+    for /f %%w in ('powershell -Command "(Get-Date -Year !YYYY! -Month !MM! -Day %%i).ToString('ddd')"') do (
+        set "WEEKDAY=%%w"
+    )
+
     (
         echo.
-		echo ## !YYYY!-!MM!-!DAY!(^!WEEKDAY!^)
+        echo ## !YYYY!-!MM!-!DAY!(^!WEEKDAY!^)
         echo.
         echo - 🌤 Weather: 
         echo - 😊 Mood: 
         echo - ✅ To-Do
         echo   - [ ✔ ] Task 1: 
         echo   - [ ⏳ ] Task 2: 
-		echo   - [ ✖ ] Task 3: 
-		echo ^<hr style="border-top: 1px dashed #333;"^>
-		echo - 💡 Is there something NEW?   
-		echo.
-		echo ^> *WoWthing*
-		echo.
-		echo - 📝 How was your day?   
-		echo ^> Waiting for write
+        echo   - [ ✖ ] Task 3: 
+        echo ^<hr style="border-top: 1px dashed #333;"^>
+        echo - 💡 Is there something NEW?   
+        echo.
+        echo ^> *WoWthing*
+        echo.
+        echo - 📝 How was your day?   
+        echo ^> Waiting for write
         echo.
         echo ---
     ) >> "!FILE!"
