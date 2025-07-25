@@ -12,7 +12,7 @@ for /f %%a in ('powershell -Command "[System.Globalization.CultureInfo]::Invaria
 
 :: 경로 및 파일명 구성
 set "DIR=%~dp0!YYYY!\!MM!"
-set "FILE_NAME=!DD!(!WEEKDAY!).md"
+set "FILE_NAME=!DD!(!WEEKDAY!)-ruru.md"
 set "FILE=!DIR!\!FILE_NAME!"
 
 :: 디렉토리 생성
