@@ -1,3 +1,5 @@
+:: 연도 디렉토리 내 월.md의 파일 형태로 만들어 줌
+
 @echo off
 chcp 65001 > nul
 setlocal ENABLEDELAYEDEXPANSION
