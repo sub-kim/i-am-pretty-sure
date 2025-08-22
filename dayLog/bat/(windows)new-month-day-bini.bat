@@ -11,8 +11,8 @@ for /f %%a in ('powershell -Command "(Get-Date).Day.ToString('00')"') do set "DD
 for /f %%a in ('powershell -Command "[System.Globalization.CultureInfo]::InvariantCulture.DateTimeFormat.GetAbbreviatedDayName((Get-Date).DayOfWeek)"') do set "WEEKDAY=%%a"
 
 :: 경로 및 파일명 구성
-set "DIR=%~dp0..\..\!YYYY!\!MM!"
-set "FILE_NAME=!DD!(!WEEKDAY!)-ruru.md"
+set "DIR=%~dp0..\!YYYY!\!MM!"
+set "FILE_NAME=!DD!(!WEEKDAY!)-bini.md"
 set "FILE=!DIR!\!FILE_NAME!"
 
 :: 디렉토리 생성
