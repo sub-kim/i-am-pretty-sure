@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>🇰🇷 Google Trend Search_daily</title>
+    <style>
+        :root { --bg:#0b1020; --fg:#e8ecff; --muted:#a7b0d9; --card:#121838; --accent:#6aa2ff; }
+        html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+        header { display:flex; gap:12px; align-items:center; padding:16px 20px; position:sticky; top:0; background:linear-gradient(180deg,var(--bg),rgba(11,16,32,0.85)); backdrop-filter: blur(6px); }
+        h1 { font-size:18px; margin:0; }
+        .meta { color:var(--muted); font-size:13px; margin-left:auto; display:flex; gap:12px; align-items:center; }
+        .pill { border:1px solid #26305a; padding:2px 8px; border-radius:999px; }
+        .btn { cursor:pointer; border:1px solid #2b3a75; background:#19214a; color:var(--fg); border-radius:10px; padding:6px 10px; font-size:13px; }
+        main { padding: 12px 16px 80px; display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px; }
+        .card { background:var(--card); border:1px solid #202a55; border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+        .rank { font-weight:700; font-size:12px; color:#9db6ff; }
+        .title a { color:var(--fg); text-decoration:none; font-weight:700; }
+        .title a:hover { color:var(--accent); }
+        .traffic { font-size:12px; color:var(--muted); }
+        .news { border-top:1px dashed #2b3666; margin-top:8px; padding-top:8px; display:flex; flex-direction:column; gap:6px; }
+        .news a { color:#b9c7ff; text-decoration:none; font-size:13px; }
+        .news a:hover { text-decoration:underline; }
+        footer { position:fixed; bottom:0; left:0; right:0; color:var(--muted); background:linear-gradient(0deg,var(--bg),rgba(11,16,32,0.85)); backdrop-filter: blur(6px); padding:10px 16px; font-size:12px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #1a2247; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>🇰🇷 Google Trend Search_daily</h1>
+    <div class="meta">
+        <span id="updated" class="pill">업데이트: -</span>
+        <span id="countdown" class="pill">다음 갱신: 60s</span>
+        <button id="refreshBtn" class="btn">지금 새로고침</button>
+    </div>
+</header>
+
+<main id="grid" aria-live="polite"></main>
+
+<footer>
+    <div>데이터: Google Trends RSS(KR). 실시간이 아닌 “일별 급상승” 기준입니다.</div>
+    <div><a href="https://trends.google.co.kr/trends/trendingsearches/daily?geo=KR" target="_blank" rel="noopener">원본 열기</a></div>
+</footer>
+
+<script>
+    // 1차: AllOrigins → google.com
+    const RSS_GOOGLE_COM = 'https://trends.google.com/trends/trendingsearches/daily/rss?geo=KR';
+    // 2차: AllOrigins → google.co.kr
+    const RSS_GOOGLE_KR  = 'https://trends.google.co.kr/trends/trendingsearches/daily/rss?geo=KR';
+    // 3차: r.jina.ai (반드시 https→https 형식 사용)
+    const RSS_JINA_AI    = 'https://r.jina.ai/https://trends.google.com/trends/trendingsearches/daily/rss?geo=KR';
+
+    // (선택) 네가 직접 배포한 Worker. 실제 URL로 바꾸지 않으면 404 납니다.
+    const PROXY_URL      = ''; // 예: 'https://trends-kr.<내서브도메인>.workers.dev'
+
+    const grid = document.getElementById('grid');
+    const updatedEl = document.getElementById('updated');
+    const countdownEl = document.getElementById('countdown');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    function escapeHtml(s){ return (s??'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+    // AllOrigins raw 엔드포인트 래퍼
+    const ao = (url) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+
+    async function fetchText(url) {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status} @ ${url}`);
+        const t = await res.text();
+        console.log('[Trends] Fetched', url, 'len=', t.length, 'head=', t.slice(0, 200));
+        return t;
+    }
+
+    function parseRssToItems(xmlText) {
+        const xml = new DOMParser().parseFromString(xmlText, 'text/xml');
+        const items = [...xml.querySelectorAll('item')].map((item) => {
+            const text = (sel) => item.querySelector(sel)?.textContent?.trim() || '';
+            const stripCdata = (s) => s.replace(/^\s*<!\[CDATA\[|\]\]>\s*$/g, '');
+            const title  = stripCdata(text('title'));
+            const link   = text('link');
+            const approx = stripCdata(item.querySelector('ht\\:approx_traffic')?.textContent || '');
+            const news = [...item.querySelectorAll('ht\\:news_item')].map(n => ({
+                title:  stripCdata(n.querySelector('ht\\:news_item_title')?.textContent || ''),
+                source: stripCdata(n.querySelector('ht\\:news_item_source')?.textContent || ''),
+                url:    (n.querySelector('ht\\:news_item_url')?.textContent || '')
+            }));
+            return { title, link, approxTraffic: approx, news };
+        });
+        return { updatedAt: new Date().toISOString(), items };
+    }
+
+    // ✅ 신형 RSS 피드 (지역별)
+    const FEED_NEW       = 'https://trends.google.com/trending/rss?geo=KR';
+    // 1차: AllOrigins 통해 CORS 허용
+    const AO_FEED        = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(FEED_NEW);
+    // 2차: r.jina.ai 폴백
+    const JINA_FEED      = 'https://r.jina.ai/' + FEED_NEW.replace('https://', 'https://');
+
+    // 순차 폴백: AllOrigins(신형URL) → r.jina.ai(신형URL) → (있다면) 네 Worker
+    async function fetchTrendsSmart() {
+        const errors = [];
+        for (const url of [AO_FEED, JINA_FEED]) {
+            try {
+                const xml = await fetchText(url);
+                const data = parseRssToItems(xml);
+                if (data.items.length) return data;
+                errors.push(`${url}: item=0`);
+            } catch (e) {
+                errors.push(`${url}: ${e.message}`);
+            }
+        }
+
+        if (PROXY_URL) {
+            try {
+                const res = await fetch(PROXY_URL, { cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status} @ ${PROXY_URL}`);
+                return await res.json();
+            } catch (e) {
+                errors.push(`PROXY ${PROXY_URL}: ${e.message}`);
+            }
+        }
+
+        throw new Error(errors.join(' | '));
+    }
+
+    function render({ updatedAt, items }) {
+        updatedEl.textContent = `업데이트: ${new Date(updatedAt).toLocaleString()}`;
+        if (!items.length) {
+            grid.innerHTML = `<div style="grid-column:1/-1; color:#ffdf9a">
+        항목이 0건입니다. 잠시 후 다시 시도하거나, PROXY_URL(직접 배포 Worker)을 설정하세요.
+      </div>`;
+            return;
+        }
+        grid.innerHTML = items.map((it, idx) => `
+      <article class="card">
+        <div class="rank">#${idx+1}</div>
+        <div class="title"><a href="${it.link}" target="_blank" rel="noopener">${escapeHtml(it.title)}</a></div>
+        ${it.approxTraffic ? `<div class="traffic">대략 트래픽: ${escapeHtml(it.approxTraffic)}</div>` : ''}
+        ${it.news?.length ? `
+          <div class="news">
+            ${it.news.slice(0,3).map(n => `<a href="${n.url}" target="_blank" rel="noopener">📰 ${escapeHtml(n.title)} <small>(${escapeHtml(n.source)})</small></a>`).join('')}
+          </div>` : ''}
+      </article>
+    `).join('');
+    }
+
+    let remain = 60;
+    async function load() {
+        try {
+            const data = await fetchTrendsSmart();
+            render(data);
+        } catch (e) {
+            const isFile = location.protocol === 'file:';
+            const tips = [
+                `오류: ${escapeHtml(e.message)}`,
+                isFile ? '현재 file:// 로 열려 있어 origin이 null 입니다.' : `현재 origin: ${location.origin}`,
+                '해결 팁:',
+                ' - 가장 간단: 로컬 서버로 열기 (python -m http.server 5500)',
+                ' - AllOrigins가 503이면 잠시 후 재시도',
+                ' - 안정 운용: PROXY_URL을 직접 배포한 Worker 주소로 설정(아래 참고)',
+            ];
+            grid.innerHTML = `<div style="grid-column:1/-1; white-space:pre-line; color:#ff9aa2">${tips.join('\n')}</div>`;
+        }
+    }
+
+    function tick() {
+        remain--;
+        if (remain <= 0) { remain = 60; load(); }
+        countdownEl.textContent = `다음 갱신: ${remain}s`;
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', () => { remain = 60; load(); });
+    load();
+    setInterval(tick, 1000);
+</script>
+</body>
+</html>
