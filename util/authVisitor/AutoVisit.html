@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>시간대별 링크 호출</title>
+</head>
+<body>
+	<h1>URL 등록 및 호출</h1>
+	<input type="text" id="urlInput" placeholder="URL을 입력하세요" />
+	<input type="number" id="intervalInput" placeholder="호출 주기 (분)" />
+	<button onclick="addUrl()">추가</button>
+	<button onclick="startAutoCall()">시작</button>
+	<div id="urlList"></div>
+	<div id="visitLog"></div>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+	<script>
+		let urls = [];
+		let cafes = [];
+		let count = 0;
+		let notice = '';
+		let today;
+		let nextTime;
+
+		function addUrl() {
+			const urlInput = document.getElementById('urlInput');
+			const intervalInput = document.getElementById('intervalInput');
+			let url = urlInput.value.trim();
+			let interval = intervalInput.value.trim();
+
+			// URL이 절대 경로로 입력되었는지 확인
+			if (!url.match(/^https?:\/\//i)) {
+				url = 'https://' + url;
+			}
+
+			if (url && interval) {
+				interval = parseInt(interval) * 60000; // 분을 밀리초로 변환
+				urls.push({ url: url, interval: interval, visitCount: 0 }); // 방문 횟수 초기화
+				displayUrls();
+				urlInput.value = ''; // URL 입력 필드만 초기화
+			}
+		}
+
+		function displayUrls() {
+			const urlList = document.getElementById('urlList');
+			urlList.innerHTML = '';
+			urls.forEach((urlObj, index) => {
+				const urlItem = document.createElement('div');
+				urlItem.innerHTML = `${index + 1}. ${urlObj.url} - 호출 주기: ${urlObj.interval / 60000}분`;
+				urlList.appendChild(urlItem);
+			});
+		}
+
+		function logVisit(_url, _time, _nextTime, visitCount) {
+			const visitLog = document.getElementById('visitLog');
+			const logItem = document.createElement('div');
+			logItem.innerHTML = `${visitCount} 번 방문한 URL: ${_url} - 방문 시간: ${_time} - 다음 호출 시간: ${_nextTime}`;
+			visitLog.appendChild(logItem);
+		}
+
+		function autoF(urlObj, _idx) {
+			urlObj.visitCount += 1; // 방문 횟수 증가
+			console.log(urls.length, _idx);
+			today = new Date();
+			nextTime = new Date(Date.now() + urlObj.interval).toLocaleString();
+
+			console.log(_idx + "번째 오픈" + today.toLocaleString() + ":" + today.getMilliseconds() + " 다음 방문 시간 : " + nextTime);
+
+			cafes[_idx] = window.open(urlObj.url, "cafe" + _idx, '_blank');
+
+			notice += urlObj.url + " 방문 시간은 " + today.toLocaleString() + '<br><br>';
+			logVisit(urlObj.url, today.toLocaleString(), nextTime, urlObj.visitCount);
+
+			setTimeout(closeTab, 1000, _idx);
+			setTimeout(autoF, urlObj.interval, urlObj, _idx);
+		}
+
+		function closeTab(_idx) {
+			console.log(_idx + "번째 닫기 " + today.toLocaleString() + ":" + today.getMilliseconds());
+			cafes[_idx].close();
+		}
+
+		function startAutoCall() {
+			if (urls.length > 0) {
+				urls.forEach((urlObj, index) => {
+					autoF(urlObj, index);
+				});
+			} else {
+				alert('URL을 하나 이상 등록하세요.');
+			}
+		}
+	</script>
+</body>
+</html>
