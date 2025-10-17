@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>실시간 환율 체크</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#0b1220;--card:#121a2e;--muted:#9fb0d0;--fg:#eaf0ff;--accent:#6aa2ff;--radius:14px;--up:#3bd19b;--down:#ff6a8e}
+        *{box-sizing:border-box}
+        body{margin:0;background:var(--bg);color:var(--fg);font-family:'Nanum Gothic',sans-serif;line-height:1.6;padding:20px}
+        header{text-align:center;margin-bottom:20px}
+        .title{font-size:22px;font-weight:700;color:var(--accent);text-shadow:0 0 8px rgba(106,162,255,.5)}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        @media (max-width:900px){.grid{grid-template-columns:1fr}}
+        .card{background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);padding:16px;box-shadow:0 8px 20px rgba(0,0,0,.3)}
+        .card h2{font-size:16px;font-weight:700;color:var(--muted);margin:0 0 10px}
+        .rates{display:flex;flex-wrap:wrap;gap:12px}
+        .rate-card{flex:1 1 180px;min-width:180px;background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;border:1px solid rgba(255,255,255,.08);transition:transform .2s,border-color .2s}
+        .rate-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+        .pair{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted);white-space:nowrap}
+        .pill{font-size:11px;padding:1px 6px;border-radius:6px;background:rgba(106,162,255,.15);color:var(--accent)}
+        .rate-value{font-size:18px;font-weight:700;margin-top:6px}
+        .sub{font-size:11px;color:var(--muted);margin-top:2px}
+        .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+        .btn{appearance:none;background:rgba(106,162,255,.15);color:var(--fg);border:1px solid rgba(106,162,255,.35);border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px;cursor:pointer}
+        .btn:hover{filter:brightness(1.05)}
+        .footer{margin-top:10px;font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center;justify-content:flex-end}
+        .dot{width:8px;height:8px;border-radius:50%;background:var(--up);box-shadow:0 0 0 6px rgba(59,209,155,.15);display:inline-block}
+        .dot2{width:8px;height:8px;border-radius:50%;background:#6aa2ff;box-shadow:0 0 0 6px rgba(59,209,155,.15);display:inline-block}
+        .footer a {color:var(--accent);text-decoration:none;}
+        .footer a:hover {text-decoration:underline;}
+
+        /* 크로스 모니터 */
+        .note{font-size:12px;color:var(--muted);margin-bottom:8px}
+        .cross-table{width:100%;border-collapse:separate;border-spacing:0 8px}
+        .cross-table th,.cross-table td{padding:10px 12px;text-align:left;font-size:13px}
+        .cross-row{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px}
+        .cross-pair{color:var(--muted);white-space:nowrap}
+        .cross-price{font-weight:800}
+        .delta-up{color:var(--up);font-weight:700}
+        .delta-down{color:var(--down);font-weight:700}
+        .delta-flat{color:var(--muted);font-weight:700}
+    </style>
+</head>
+
+<body>
+<header>
+    <div class="title">[항공권 구매 Tip] 실시간 환율 체크</div>
+</header>
+
+<div class="grid">
+    <!-- 좌: 현재 환율 카드 -->
+    <section class="card">
+        <h2>현재 환율</h2>
+        <div class="toolbar">
+            <button class="btn" id="refreshBtn">새로고침</button>
+            <span class="note">EUR · USD · JPY(100엔 기준) · CNY(10위안 기준) → KRW</span>
+        </div>
+        <div class="rates">
+            <div class="rate-card">
+                <div class="pair"><span>유로 → 원화</span><span class="pill">EUR ➜ KRW</span></div>
+                <div class="rate-value" id="rate-eur">불러오는 중…</div>
+                <div class="sub">1 EUR 기준</div>
+            </div>
+            <div class="rate-card">
+                <div class="pair"><span>달러 → 원화</span><span class="pill">USD ➜ KRW</span></div>
+                <div class="rate-value" id="rate-usd">불러오는 중…</div>
+                <div class="sub">1 USD 기준</div>
+            </div>
+            <div class="rate-card">
+                <div class="pair"><span>엔화 → 원화</span><span class="pill">JPY ➜ KRW</span></div>
+                <div class="rate-value" id="rate-jpy">불러오는 중…</div>
+                <div class="sub">100 JPY 기준</div>
+            </div>
+            <div class="rate-card">
+                <div class="pair"><span>중국 위안 → 원화</span><span class="pill">CNY ➜ KRW</span></div>
+                <div class="rate-value" id="rate-cny">불러오는 중…</div>
+                <div class="sub">10 CNY 기준</div>
+            </div>
+        </div>
+        <!-- 좌측: 페이지 fetch 시각 -->
+        <div class="footer">
+            <span class="dot"></span><span id="last-updated-local">이 페이지 갱신: 준비 중…</span>
+        </div>
+        <div class="footer">
+            <!-- 무키 엔드포인트 -->
+            <span class="dot2"></span><span>현재 환율 데이터: <a href="https://api.exchangerate-api.com/v4/latest/USD" target="_blank">api.exchangerate-api.com/v4/latest/{BASE}</a></span>
+        </div>
+    </section>
+
+    <!-- 우: 실시간 크로스 환율 -->
+    <section class="card">
+        <h2>실시간 크로스 환율 (D-1 대비)</h2>
+        <div class="note">어제(전 영업일) 대비 등락을 표시합니다.</div>
+        <table class="cross-table">
+            <thead>
+            <tr><th>통화쌍</th><th>가격</th><th>D-1 대비</th></tr>
+            </thead>
+            <tbody id="cross-body"><!-- JS로 채움 --></tbody>
+        </table>
+        <!-- 우측: 데이터 제공원(API) 마지막 갱신 시각 -->
+        <div class="footer">
+            <span class="dot"></span><span id="last-updated-api">데이터 제공원 갱신: 준비 중…</span>
+        </div>
+        <div class="footer">
+            <!-- ECB 데이터, 무키 -->
+            <span class="dot2"></span><span>D-1 영업일 데이터: <a id="api-source-d1" href="#" target="_blank">api.frankfurter.app/{DATE}?from={BASE}&to=KRW</a></span>
+        </div>
+        </span>
+    </section>
+</div>
+
+<script>
+    /* ===== 설정 ===== */
+    const BASES = ['EUR','USD','JPY','CNY','GBP','AUD','HKD']; // 크로스 계산용
+    const CROSS_PAIRS = [
+        ['USD','JPY'], ['EUR','JPY'], ['EUR','USD'],
+        ['USD','CNY'], ['EUR','CNY'],
+        ['GBP','USD'], ['AUD','USD'],
+        ['USD','KRW'], ['EUR','KRW'], ['CNY','KRW']
+    ];
+    const REFRESH_MS = 60_000;
+
+    /* ===== 엘리먼트 ===== */
+    const $eur = document.getElementById('rate-eur');
+    const $usd = document.getElementById('rate-usd');
+    const $jpy = document.getElementById('rate-jpy');
+    const $cny = document.getElementById('rate-cny');
+    const $updatedLocal = document.getElementById('last-updated-local');
+    const $updatedApi = document.getElementById('last-updated-api');
+    const $crossBody = document.getElementById('cross-body');
+    document.getElementById('refreshBtn').addEventListener('click', refreshAll);
+
+    /* ===== 유틸 ===== */
+    const nfKR = new Intl.NumberFormat('ko-KR',{maximumFractionDigits:2});
+    const nfFX = new Intl.NumberFormat('en-US',{maximumFractionDigits:6});
+    const fmtTime = ts => {
+        const d = new Date(ts);
+        const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+        const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0'), ss=String(d.getSeconds()).padStart(2,'0');
+        return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
+    };
+    const nowText = () => fmtTime(Date.now());
+
+    /* 문자열/숫자 다양한 형태의 "갱신 시각"을 뽑아내는 유틸 */
+    function parseAnyTimestamp(j){
+        // 1) 명시적 UTC 문자열
+        const utcStr = j.time_last_update_utc || j.last_update_utc || j.time_last_update || j.lastUpdateUtc || j.last_update;
+        if (utcStr) {
+            const t = Date.parse(utcStr);
+            if (!Number.isNaN(t)) return t;
+        }
+        // 2) 다음 갱신(백업)
+        const nextUtcStr = j.time_next_update_utc || j.next_update_utc;
+        if (nextUtcStr) {
+            const t = Date.parse(nextUtcStr);
+            if (!Number.isNaN(t)) return t;
+        }
+        // 3) 유닉스(초/밀리초)
+        const unix = j.time_last_update_unix ?? j.last_updated ?? j.lastUpdate;
+        if (typeof unix === 'number') {
+            // 초 단위라면 10^12 미만, 밀리초면 10^12 이상
+            return unix < 1e12 ? unix * 1000 : unix;
+        }
+        // 4) YYYY-MM-DD 같은 date 필드
+        if (j.date && typeof j.date === 'string') {
+            const t = Date.parse(j.date);
+            if (!Number.isNaN(t)) return t;
+        }
+        return null;
+    }
+
+    /* D-1(영업일 보정: 주말이면 금요일) */
+    function getPrevBusinessDate(d = new Date()) {
+        const dt = new Date(d);
+        dt.setDate(dt.getDate() - 1);
+        const w = dt.getDay(); // 0 일 ~ 6 토
+        if (w === 0) dt.setDate(dt.getDate() - 2);
+        if (w === 6) dt.setDate(dt.getDate() - 1);
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth()+1).padStart(2,'0');
+        const dd = String(dt.getDate()).padStart(2,'0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    /* ===== API ===== */
+    async function fetchBase(base){
+        const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${base}`);
+        if(!res.ok) throw new Error(`Fetch failed: ${base}`);
+        return res.json(); // { base, rates, time_* ... }
+    }
+    // ✅ D-1: 특정 날짜의 BASE→KRW 환율을 Frankfurter(무키)에서 얻기
+    async function fetchHistoricalBase(base, dateStr) {
+        // 올바른 도메인: api.frankfurter.app
+        const url = `https://api.frankfurter.app/${dateStr}?from=${base}&to=KRW`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Frankfurter hist failed: ${base} ${dateStr}`);
+        const j = await res.json(); // 예: { amount:1, base:"USD", date:"2025-10-16", rates:{ KRW: 1388.45 } }
+        return j; // 그대로 반환 (buildPrevMap에서 rates.KRW를 읽습니다)
+    }
+
+    // ✅ D-1 맵 구성: BASES 각각에 대해 KRW 값만 추출
+    async function buildPrevMap(dateStr) {
+        const prevMap = {};
+        const results = await Promise.all(
+            BASES.map(async (b) => {
+                try {
+                    const j = await fetchHistoricalBase(b, dateStr);
+                    const krw = (j && j.rates && typeof j.rates.KRW === 'number') ? j.rates.KRW : null;
+                    return [b, krw];
+                } catch (e) {
+                    console.warn('D-1 fetch error:', b, e);
+                    return [b, null];
+                }
+            })
+        );
+        results.forEach(([b, krw]) => {
+            prevMap[b] = { KRW: krw }; // null일 경우 렌더에서 '—' 표시됨
+        });
+        return prevMap;
+    }
+
+    /* ===== 카드 갱신 ===== */
+    function setCards(map){
+        if(map.EUR?.KRW) $eur.textContent = `${nfKR.format(map.EUR.KRW)} 원`;
+        if(map.USD?.KRW) $usd.textContent = `${nfKR.format(map.USD.KRW)} 원`;
+        if(map.JPY?.KRW) $jpy.textContent = `${nfKR.format(map.JPY.KRW * 100)} 원`; // 100엔 기준
+        if(map.CNY?.KRW) $cny.textContent = `${nfKR.format(map.CNY.KRW * 10)} 원`; // 10위안 기준
+        $updatedLocal.textContent = `이 페이지 갱신: ${nowText()}`; // ✅ fetch 시각
+    }
+
+    /* ===== 크로스 계산 & 렌더 ===== */
+    function crossRate(map, L, R){
+        if(R === 'KRW') return map[L]?.KRW ?? null;
+        if(L === 'KRW') return map[R]?.KRW ? 1 / map[R].KRW : null;
+        const l = map[L]?.KRW, r = map[R]?.KRW;
+        if(!l || !r) return null;
+        return l / r;
+    }
+
+    /* D-1 대비 표시 */
+    function deltaTextVsPrev(cur, prev){
+        if(prev == null || cur == null) return '—';
+        const diff = cur - prev;
+        const pct = prev ? (diff / prev) * 100 : 0;
+        const sign = diff>0 ? '▲' : diff<0 ? '▼' : '—';
+        return `${sign} ${nfFX.format(Math.abs(diff))} (${pct>0?'+':''}${pct.toFixed(3)}%)`;
+    }
+    function deltaClassVsPrev(cur, prev){
+        if(prev == null) return 'delta-flat';
+        if(cur > prev) return 'delta-up';
+        if(cur < prev) return 'delta-down';
+        return 'delta-flat';
+    }
+
+    /* 렌더 (D-1만) */
+    function renderCross(map, prevMap){
+        const frag = document.createDocumentFragment();
+        CROSS_PAIRS.forEach(([L,R])=>{
+            const key = `${L}/${R}`;
+            const cur = crossRate(map, L, R);
+            const prevD1 = crossRate(prevMap, L, R);
+            const tr = document.createElement('tr'); tr.className='cross-row';
+
+            const td1 = document.createElement('td'); td1.className='cross-pair'; td1.textContent = key;
+            const td2 = document.createElement('td'); td2.className='cross-price'; td2.textContent = cur!=null ? nfFX.format(cur) : '—';
+            const td3 = document.createElement('td'); const txt = deltaTextVsPrev(cur, prevD1); td3.textContent = txt; td3.className = deltaClassVsPrev(cur, prevD1);
+
+            tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+            frag.appendChild(tr);
+        });
+        $crossBody.innerHTML = '';
+        $crossBody.appendChild(frag);
+    }
+
+    /* 메인: 카드(현시각) + 크로스(D-1 비교) + 공급사 갱신시각 */
+    async function refreshAll(){
+        try{
+            // 오늘(최신) 스냅샷
+            const jsons = await Promise.all(BASES.map(b => fetchBase(b)));
+            const map = {};
+            jsons.forEach(j => { map[j.base] = { KRW: j.rates?.KRW ?? null }; });
+            setCards(map);
+
+            // ▶ 우측: "API 제공원 갱신" 시각 = 사용 가능한 필드들을 모두 검사해 가장 최신 값 선택
+            const tsCandidates = jsons.map(parseAnyTimestamp).filter(v => v != null);
+            if (tsCandidates.length) {
+                const latestTs = Math.max(...tsCandidates);
+                $updatedApi.textContent = `데이터 제공원 갱신: ${fmtTime(latestTs)} (무료 API · 일 1회 갱신)`;
+            } else {
+                $updatedApi.textContent = '데이터 제공원 갱신: 정보 없음';
+            }
+
+            // ✅ D-1 날짜 계산
+            const d1 = getPrevBusinessDate();
+
+            // ✅ D-1 맵 생성 후 렌더
+            const prevMap = await buildPrevMap(d1);
+            renderCross(map, prevMap);
+
+            // ✅ 하단 API 링크 갱신
+            const d1Link = `https://api.frankfurter.app/${d1}?from=USD&to=KRW`;
+
+            // D-1 출처에 유동적으로 값 넣기
+            const d1El = document.querySelector('#api-source-d1');
+            if (d1El) {
+                d1El.href = d1Link;
+                d1El.textContent = d1Link.replace(/^https?:\/\//, '');
+            }
+
+        }catch(e){
+            console.error(e);
+            [$eur,$usd,$jpy,$cny].forEach(el => el.textContent='불러오기 실패');
+            $updatedLocal.textContent = '이 페이지 갱신: 실패';
+            $updatedApi.textContent = '데이터 제공원 갱신: 실패';
+            $crossBody.innerHTML = '<tr class="cross-row"><td colspan="3">크로스 데이터를 불러오지 못했습니다.</td></tr>';
+        }
+    }
+    refreshAll();
+    setInterval(refreshAll, REFRESH_MS);
+</script>
+</body>
+</html>
