@@ -6,7 +6,7 @@
 
 내가 사용하는 폰트 저장
 
-- 폰트별 출처
+### 폰트별 출처
   - D2Coding (https://github.com/naver/d2codingfont)
   - Fira Code (https://github.com/tonsky/FiraCode)
     > VSCode에서 자주 사용함
