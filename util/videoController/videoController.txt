@@ -1,0 +1,98 @@
+// [비디오 재생 속도 조절]
+setTimeout(() => {
+    const outerIframe = document.getElementById('contentsFrame');
+    if (!outerIframe) return console.log('outer iframe 없음');
+
+    const innerFrame = outerIframe.contentWindow.document.getElementById('frame');
+    if (!innerFrame) return console.log('inner iframe 없음');
+
+    try {
+        const video = innerFrame.contentWindow.document.querySelector('video');
+        if (video) {
+            video.playbackRate = 4.0;
+            console.log('🎉 재생속도 4배로 설정 완료!');
+        } else {
+            console.log('❌ video 태그 없음');
+        }
+    } catch (e) {
+        console.error('🚫 접근 불가 (CORS 문제 가능)', e);
+    }
+}, 5000); // 충분히 로딩 후 실행
+
+// [비디오 다음 버튼 클릭]
+setInterval(() => {
+    try {
+        const outer = document.getElementById('contentsFrame');
+        if (!outer) return console.log('❌ outer iframe 없음');
+
+        const outerDoc = outer.contentWindow.document;
+        const inner = outerDoc.getElementById('frame');
+        if (!inner) return console.log('❌ inner iframe (#frame) 없음');
+
+        const innerDoc = inner.contentWindow.document;
+        const btn = innerDoc.getElementById('nextBtn');
+
+        if (btn) {
+            const isDisabled = btn.hasAttribute('disabled');
+            const isClickable = btn.style.pointerEvents !== 'none';
+
+            if (!isDisabled && isClickable) {
+                btn.click();
+                console.log('✅ nextBtn 클릭됨');
+            } else {
+                console.log(`⏸ 클릭 불가: disabled=${isDisabled}, pointerEvents=${btn.style.pointerEvents}`);
+            }
+        } else {
+            console.log('❌ nextBtn 없음');
+        }
+    } catch (e) {
+        console.error('🚫 접근 실패 (iframe 로딩 중이거나 CORS)', e);
+    }
+}, 5000); // 5초마다 반복 실행
+
+
+// [통합 코드]
+const CHECK_INTERVAL = 5000;
+
+setInterval(() => {
+    try {
+        const outer = document.getElementById('contentsFrame');
+        if (!outer) return console.log('❌ outer iframe 없음');
+
+        const outerDoc = outer.contentWindow.document;
+        const inner = outerDoc.getElementById('frame');
+        if (!inner) return console.log('❌ inner iframe (#frame) 없음');
+
+        const innerDoc = inner.contentWindow.document;
+
+        // [1] 버튼 자동 클릭
+        const btn = innerDoc.getElementById('nextBtn');
+        if (btn) {
+            const isDisabled = btn.hasAttribute('disabled');
+            const isClickable = btn.style.pointerEvents !== 'none';
+
+            if (!isDisabled && isClickable) {
+                btn.click();
+                console.log('✅ nextBtn 클릭됨');
+            } else {
+                console.log(`⏸ 클릭 불가: disabled=${isDisabled}, pointerEvents=${btn.style.pointerEvents}`);
+            }
+        } else {
+            console.log('❌ nextBtn 없음');
+        }
+
+        // [2] video 태그 속도 조절
+        const video = innerDoc.querySelector('video');
+        if (video) {
+            if (video.playbackRate !== 4.0) {
+                video.playbackRate = 4.0;
+                console.log('🎉 재생속도 4배로 설정 완료!');
+            }
+        } else {
+            console.log('🎥 video 태그 없음');
+        }
+
+    } catch (e) {
+        console.error('🚫 접근 실패 (iframe 로딩 중이거나 CORS)', e);
+    }
+}, CHECK_INTERVAL); // 5초마다 반복
