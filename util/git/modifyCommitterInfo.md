@@ -32,28 +32,34 @@
 - 이건 단순히 "Python을 아직 설치하지 않은 사람을 위해 Store로 연결만 시켜주는 실행기"일 뿐, 실제 Python 해석기나 pip 모듈은 아예 포함되어 있지 않음
 > $ C:\Users\user\AppData\Local\Microsoft\WindowsApps\python.exe
 >
-### 파이썬 설치  
+
+---
+### 파이썬이 설치되지 않았을 경우에만 실행  
+
+#### 파이썬 설치  
 - 아래 경로에서 Windows installer (64-bit) 다운로드
 > https://www.python.org/downloads/release/python-31210/
 >
-### 파이썬 설치 확인 후 아직 동일하게 나온다면 환경변수 등록
+#### 파이썬 설치 확인 후 아직 동일하게 나온다면 환경변수 등록
 > $ where python
 >
-### 파이썬 환경변수 등록  
+#### 파이썬 환경변수 등록  
 - Win 키 → "환경 변수" 검색 → "시스템 환경 변수 편집" 클릭 → 하단의 [환경 변수(N)...] 버튼 클릭 → 사용자 변수 또는 시스템 변수에서 Path 더블클릭 → [새로 만들기] 클릭해서 아래 2개 경로를 추가
 >
 > 1) C:\Users\user\AppData\Local\Programs\Python\Python312\
 > 2) C:\Users\user\AppData\Local\Programs\Python\Python312\Scripts\
 >
-### 파이썬 설치 확인
+#### 파이썬 설치 확인
 > $ where python
 >
-### git-filter-repo 설치
+#### git-filter-repo 설치
 > $ pip install git-filter-repo
 >
-### 설치 확인
+#### 설치 확인
 > $ git filter-repo --version
->
+
+---
+
 ### 현재 커밋 내역을 시간 역순으로 표출하여 바꿀 name, email 확인
 > $ git log --pretty=format:"%h %an <%ae>" --reverse
 >
