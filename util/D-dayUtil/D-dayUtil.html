@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>D‑day 계산기 · Multi & Theme</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#121a2e; --fg:#e8eeff; --muted:#aab5d6; --accent:#79a8ff; --accent-2:#11d1b7; --danger:#ff6b6b;
+      --shadow:0 10px 25px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.25);
+      --fs:15px;
+    }
+    :root.light{
+      --bg:#f6f8ff; --card:#ffffff; --fg:#0e1325; --muted:#68708f; --accent:#3d6cff; --accent-2:#0aa696; --danger:#e54848;
+      --shadow:0 10px 25px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.05);
+    }
+    html,body{height:100%}
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#1a2341 0%,rgba(26,35,65,0) 60%),var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Pretendard,Malgun Gothic,sans-serif;font-size:var(--fs)}
+    .wrap{max-width:1080px;margin:0 auto;padding:24px}
+    header{display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:16px}
+    h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.2px}
+    .muted{color:var(--muted);font-size:calc(var(--fs) - 2px)}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:var(--shadow);padding:18px}
+    :root.light .card{background:#fff;border-color:#e8ecff}
+    .grid{display:grid;gap:14px}
+    @media(min-width:980px){.grid{grid-template-columns:1.2fr .8fr}}
+    label{display:block;font-size:calc(var(--fs) - 2px);color:var(--muted);margin:0 0 6px 2px}
+    input[type="text"],input[type="date"],input[type="time"],select{width:100%;background:#0f1729;border:1px solid rgba(255,255,255,.1);color:var(--fg);border-radius:12px;padding:12px 14px;font-size:var(--fs);outline:none}
+    :root.light input,:root.light select{background:#f3f6ff;color:#0e1325;border-color:#d9e0ff}
+    input[type="text"]::placeholder{color:#6f7aa8}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .chip{border:1px solid rgba(255,255,255,.12);background:#0e1628;border-radius:999px;padding:8px 12px;font-size:inherit;color:var(--fg);cursor:pointer;user-select:none}
+    :root.light .chip{background:#eef3ff;border-color:#dbe4ff;color:#0e1325}
+    .chip[aria-pressed="true"]{border-color:transparent;background:linear-gradient(180deg,#1e2d55,#162443)}
+    :root.light .chip[aria-pressed="true"]{background:#cfe0ff}
+    .btn{appearance:none;border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer;color:#081120;background:linear-gradient(180deg,var(--accent),#4b7fff);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25), 0 10px 20px rgba(73,126,255,.3);font-size:inherit}
+    .btn:active{transform:translateY(1px)}
+    .ghost{background:#16223d;color:var(--fg);font-weight:600}
+    :root.light .ghost{background:#e9efff;color:#0e1325}
+    .danger{background:linear-gradient(180deg,var(--danger),#e35050)}
+    .result{display:flex;align-items:baseline;gap:12px}
+    .result .big{font-size:calc(var(--fs) * 3.2);line-height:1;font-weight:800;letter-spacing:.5px}
+    .result .big .unit{font-size:.42em;font-weight:700;opacity:.85;margin-left:.15em}
+    .result .sub{color:var(--muted);font-size:calc(var(--fs) - 1px)}
+    .callout{border-radius:14px;border:1px dashed rgba(255,255,255,.18);padding:12px 14px;background:rgba(255,255,255,.03);font-size:calc(var(--fs) - 2px);color:var(--muted)}
+    :root.light .callout{background:#f7f9ff;border-color:#e4eaff}
+    .mono{font-variant-numeric:tabular-nums}
+    .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    a.link{color:var(--accent-2);text-decoration:none;border-bottom:1px dotted rgba(17,209,183,.5)}
+    footer{margin-top:22px;color:var(--muted);font-size:calc(var(--fs) - 2px);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+
+    /* list */
+    .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+    .item{padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);display:flex;flex-direction:column;gap:8px}
+    :root.light .item{background:#fff;border-color:#e8ecff}
+    .item h3{margin:0;font-size:calc(var(--fs) + 1px)}
+    .item .when{font-size:calc(var(--fs) - 2px);color:var(--muted)}
+    .actions{display:flex;gap:6px;flex-wrap:wrap}
+    .sm{padding:8px 10px;border-radius:10px;font-weight:700;font-size:inherit}
+    .iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(255,255,255,.12);background:#0e1628;color:var(--fg);border-radius:999px;padding:8px 12px;cursor:pointer;font-size:inherit}
+    :root.light .iconbtn{background:#eef3ff;border-color:#dbe4ff;color:#0e1325}
+    .icon{width:18px;height:18px;display:inline-block}
+
+    /* dialog */
+    dialog{border:none;border-radius:14px;padding:0;overflow:hidden;box-shadow:var(--shadow);max-width:640px}
+    dialog::backdrop{background:rgba(0,0,0,.45)}
+    .modal{padding:16px;background:var(--card);color:var(--fg)}
+    .modal h2{margin:4px 0 12px}
+    textarea{width:100%;min-height:160px;border-radius:12px;background:#0f1729;border:1px solid rgba(255,255,255,.12);color:var(--fg);padding:12px 14px;font-size:var(--fs)}
+    :root.light textarea{background:#f3f6ff;color:#0e1325;border-color:#d9e0ff}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>⏳ D‑day 계산기</h1>
+      <div style="display:flex;gap:10px;align-items:center">
+        <!-- Theme button with SVG icon -->
+        <button id="themeBtn" class="iconbtn" title="라이트/다크 전환" aria-label="테마 전환">
+          <svg id="themeIcon" class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor"/></svg>
+          <span class="muted">테마</span>
+        </button>
+        <div class="iconbtn" title="글자 크기">
+          <button id="fsDown" class="iconbtn" style="padding:6px 10px">A−</button>
+          <span class="muted mono" id="fsVal">15px</span>
+          <button id="fsUp" class="iconbtn" style="padding:6px 10px">A+</button>
+        </div>
+        <div class="muted" id="now"></div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <div class="row">
+          <div>
+            <label for="title">제목</label>
+            <input id="title" type="text" placeholder="예: 프로젝트 마감, 여행 출발, 기념일" />
+          </div>
+          <div>
+            <label for="date">목표 날짜</label>
+            <input id="date" type="date" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="time">구체 시간 (선택)</label>
+            <input id="time" type="time" step="60" />
+          </div>
+          <div>
+            <label for="countMode">계산 기준</label>
+            <select id="countMode">
+              <option value="midnight">자정 기준(날짜만)</option>
+              <option value="exact">현재 시각 기준(시간까지)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:8px">
+          <button class="chip" id="toggleInclude" aria-pressed="true">당일 포함(D‑day=0)</button>
+          <button class="chip" id="toggleBiz">평일만(월‑금)</button>
+          <span class="muted">·</span>
+          <button class="chip" data-preset="today">오늘</button>
+          <button class="chip" data-preset="monthEnd">이달 말</button>
+          <button class="chip" data-preset="yearEnd">연말</button>
+          <button class="chip" data-preset="next100">100일 뒤</button>
+        </div>
+
+        <div class="row" style="margin-top:14px">
+          <button class="btn" id="calc">계산하기</button>
+          <button class="btn ghost" id="share">링크 복사</button>
+          <button class="btn" id="saveItem" title="현재 설정을 목록에 저장">목록에 추가</button>
+          <button class="btn ghost" id="bulkBtn" title="여러 개 한 번에 추가">여러 개 추가</button>
+        </div>
+      </section>
+
+      <section class="card" id="output">
+        <div class="result">
+          <div class="big" id="dday">D‑day <span class="unit">—</span></div>
+          <div class="sub" id="subtitle">날짜를 선택하면 결과가 표시됩니다.</div>
+        </div>
+        <div class="callout" style="margin-top:12px">
+          <div>세부 정보</div>
+          <div class="mono" id="detail">—</div>
+        </div>
+        <div class="row-3" style="margin-top:12px">
+          <button class="chip" id="snapToday">기준: 오늘 00:00</button>
+          <button class="chip" id="snapNow">기준: 지금 시각</button>
+          <button class="chip danger" id="reset">초기화</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h2 style="margin:0;font-size:calc(var(--fs) + 1px)">🗂 저장된 D‑day 목록</h2>
+        <div class="actions">
+          <button class="sm ghost" id="exportJson">내보내기(JSON)</button>
+          <button class="sm ghost" id="importJson">가져오기(JSON)</button>
+        </div>
+      </div>
+      <div id="list" class="list"></div>
+    </section>
+
+    <footer>
+      <div>Tip: 링크 복사로 현재 입력값을 공유할 수 있어요.</div>
+      <div id="tz" class="mono"></div>
+    </footer>
+  </div>
+
+  <!-- 여러 개 추가 모달 -->
+  <dialog id="bulkDlg">
+    <div class="modal">
+      <h2>여러 개 추가</h2>
+      <p class="muted">한 줄에 하나씩 입력하세요. 형식: <span class="mono">제목, YYYY-MM-DD[, HH:MM]</span></p>
+      <textarea id="bulkText" placeholder="예) 회고, 2025-12-31
+연휴 출발, 2025-11-15, 09:00"></textarea>
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label>계산 기준</label>
+          <select id="bulkMode">
+            <option value="midnight">자정 기준(날짜만)</option>
+            <option value="exact">현재 시각 기준(시간까지)</option>
+          </select>
+        </div>
+        <div>
+          <label>옵션</label>
+          <div class="controls">
+            <button class="chip" id="bulkInc" aria-pressed="true">당일 포함</button>
+            <button class="chip" id="bulkBiz">평일만</button>
+          </div>
+        </div>
+      </div>
+      <div class="controls" style="margin-top:12px">
+        <button class="btn" id="bulkApply">추가</button>
+        <button class="btn ghost" id="bulkClose">닫기</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    const state = {
+      includeToday: true,
+      bizOnly: false,
+      countMode: 'midnight',
+    };
+
+    const fmt2 = n => n.toString().padStart(2,'0');
+    const toLocalISODate = d => `${d.getFullYear()}-${fmt2(d.getMonth()+1)}-${fmt2(d.getDate())}`;
+
+    function updateHeaderClock(){
+      const now = new Date();
+      $('#now').textContent = new Intl.DateTimeFormat(undefined,{dateStyle:'full', timeStyle:'medium'}).format(now);
+      $('#tz').textContent = `Time zone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+    }
+
+    function parseInputs(){
+      const title = $('#title').value.trim();
+      const dateStr = $('#date').value; if(!dateStr) return null;
+      const timeStr = $('#time').value;
+      let target = new Date(dateStr + (timeStr? `T${timeStr}`: 'T00:00'));
+      return { title, target, dateStr, timeStr };
+    }
+
+    function isBizDay(d){
+      const wd = d.getDay(); // 0 Sun .. 6 Sat
+      return wd >= 1 && wd <= 5;
+    }
+
+    function bizDayDiff(a,b){
+      const step = a <= b ? 1 : -1;
+      let d = new Date(a);
+      let cnt = 0;
+      while ((step>0 && d < b) || (step<0 && d > b)){
+        if(isBizDay(d)) cnt += step;
+        d.setDate(d.getDate()+step);
+      }
+      return cnt;
+    }
+
+    function calc(){
+      const data = parseInputs();
+      if(!data){
+        $('#dday').innerHTML = 'D‑day <span class="unit">—</span>';
+        $('#subtitle').textContent = '날짜를 선택하면 결과가 표시됩니다.';
+        $('#detail').textContent = '—';
+        return;
+      }
+
+      const { title, target } = data;
+      const now = new Date();
+
+      let base = new Date(now);
+      if(state.countMode === 'midnight'){
+        base.setHours(0,0,0,0);
+        target.setHours(0,0,0,0);
+      }
+
+      let diffMs = target - base;
+      let sign = Math.sign(diffMs);
+
+      let days;
+      if(state.bizOnly){
+        const a = sign>=0 ? base : target;
+        const b = sign>=0 ? target : base;
+        days = bizDayDiff(a,b);
+      } else {
+        days = Math.floor(Math.abs(diffMs) / 86400000) * (sign>=0?1:-1);
+      }
+
+      if(!state.includeToday){
+        if(sign>0) days = days + 1; else if(sign<0) days = days - 1;
+      }
+
+      let label;
+      if(days === 0) label = 'D‑day';
+      else if(days > 0) label = `D‑${days}`;
+      else label = `D+${Math.abs(days)}`;
+
+      $('#dday').innerHTML = `${label} <span class="unit">days</span>`;
+
+      const opt = {dateStyle:'full', timeStyle: state.countMode==='midnight' ? undefined : 'short'};
+      const tgtText = new Intl.DateTimeFormat(undefined,opt).format(target);
+      const nowText = new Intl.DateTimeFormat(undefined,opt).format(base);
+
+      $('#subtitle').textContent = title ? `목표: ${title}` : '—';
+      $('#detail').textContent = `목표 시점: ${tgtText} | 기준 시점: ${nowText} | 옵션: ${state.includeToday?'당일 포함':'당일 제외'}${state.bizOnly?', 평일만':''}`;
+      return {label, days};
+    }
+
+    function applyPreset(key){
+      const now = new Date();
+      if(key==='today') $('#date').value = toLocalISODate(now);
+      else if(key==='monthEnd'){ const d = new Date(now.getFullYear(), now.getMonth()+1, 0); $('#date').value = toLocalISODate(d); }
+      else if(key==='yearEnd'){ const d = new Date(now.getFullYear(), 11, 31); $('#date').value = toLocalISODate(d); }
+      else if(key==='next100'){ const d = new Date(now); d.setDate(d.getDate()+100); $('#date').value = toLocalISODate(d); }
+      calc();
+    }
+
+    function toQuery(){
+      const data = parseInputs();
+      const q = new URLSearchParams();
+      if(data){ if(data.title) q.set('t', data.title); if(data.dateStr) q.set('d', data.dateStr); if(data.timeStr) q.set('h', data.timeStr); }
+      q.set('m', state.countMode); q.set('inc', state.includeToday? '1':'0'); q.set('biz', state.bizOnly? '1':'0');
+      return q.toString();
+    }
+
+    function fromQuery(){
+      const q = new URLSearchParams(location.search);
+      if(q.has('t')) $('#title').value = q.get('t');
+      if(q.has('d')) $('#date').value = q.get('d');
+      if(q.has('h')) $('#time').value = q.get('h');
+      if(q.has('m')) $('#countMode').value = q.get('m');
+      state.countMode = $('#countMode').value;
+      if(q.has('inc')) state.includeToday = q.get('inc')==='1';
+      if(q.has('biz')) state.bizOnly = q.get('biz')==='1';
+      $('#toggleInclude').setAttribute('aria-pressed', String(state.includeToday));
+      $('#toggleBiz').setAttribute('aria-pressed', String(state.bizOnly));
+    }
+
+    // THEME ICON + FONT SIZE
+    function drawThemeIcon(){
+      const svg = document.getElementById('themeIcon');
+      const isLight = document.documentElement.classList.contains('light');
+      svg.innerHTML = isLight
+        ? '<circle cx="12" cy="12" r="5" fill="currentColor"/>'
+        : '<path d="M12 2a1 1 0 0 0 0 2 8 8 0 1 1-8 8 1 1 0 1 0-2 0 10 10 0 1 0 10-10z" fill="currentColor"/>';
+    }
+    function applyThemeFromStorage(){
+      const theme = localStorage.getItem('dd_theme') || 'dark';
+      document.documentElement.classList.toggle('light', theme==='light');
+      drawThemeIcon();
+    }
+    function applyFontFromStorage(){
+      const fs = Math.min(20, Math.max(14, Number(localStorage.getItem('dd_fs')||15)));
+      document.documentElement.style.setProperty('--fs', fs+'px');
+      document.getElementById('fsVal').textContent = fs+'px';
+    }
+
+    document.getElementById('themeBtn').addEventListener('click', ()=>{
+      const cur = localStorage.getItem('dd_theme')||'dark';
+      const next = cur==='dark' ? 'light' : 'dark';
+      localStorage.setItem('dd_theme', next);
+      applyThemeFromStorage();
+    });
+    document.getElementById('fsUp').addEventListener('click', ()=>{ const v = Math.min(20, (Number(localStorage.getItem('dd_fs')||15))+1); localStorage.setItem('dd_fs', v); applyFontFromStorage(); });
+    document.getElementById('fsDown').addEventListener('click', ()=>{ const v = Math.max(14, (Number(localStorage.getItem('dd_fs')||15))-1); localStorage.setItem('dd_fs', v); applyFontFromStorage(); });
+
+    // MULTI D-DAY LIST (localStorage)
+    const LS_KEY = 'dday_items_v1';
+    function loadItems(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch(e){ return []; } }
+    function saveItems(items){ localStorage.setItem(LS_KEY, JSON.stringify(items)); }
+
+    function renderList(){
+      const list = document.getElementById('list'); list.innerHTML='';
+      const items = loadItems();
+      if(items.length===0){ list.innerHTML = '<div class="muted">저장된 항목이 없습니다. 현재 설정으로 "목록에 추가"를 눌러보세요.</div>'; return; }
+      items.forEach((it, idx)=>{
+        const el = document.createElement('div'); el.className='item';
+        el.innerHTML = `
+          <h3>${it.title || '제목 없음'}</h3>
+          <div class="when mono">${it.dateStr}${it.timeStr? ' '+it.timeStr:''} (${it.countMode==='midnight'?'자정 기준':'시간 기준'})</div>
+          <div class="actions">
+            <button class="sm" data-act="calc">계산</button>
+            <button class="sm ghost" data-act="share">공유</button>
+            <button class="sm ghost" data-act="edit">편집</button>
+            <button class="sm danger" data-act="del">삭제</button>
+          </div>
+          <div class="mono" data-role="preview"></div>
+        `;
+        el.querySelector('[data-act="calc"]').addEventListener('click', ()=>{
+          document.getElementById('title').value = it.title||''; document.getElementById('date').value = it.dateStr; document.getElementById('time').value = it.timeStr||''; document.getElementById('countMode').value = it.countMode; state.countMode = it.countMode; calc();
+        });
+        el.querySelector('[data-act="share"]').addEventListener('click', ()=>{
+          const url = location.origin + location.pathname + '?' + new URLSearchParams(it).toString();
+          navigator.clipboard.writeText(url).then(()=>{ alert('링크를 클립보드에 복사했습니다.'); });
+        });
+        el.querySelector('[data-act="edit"]').addEventListener('click', ()=>{
+          const title = prompt('제목 수정', it.title||''); if(title===null) return; it.title=title; const items=loadItems(); items[idx]=it; saveItems(items); renderList();
+        });
+        el.querySelector('[data-act="del"]').addEventListener('click', ()=>{
+          if(!confirm('삭제할까요?')) return; const items=loadItems(); items.splice(idx,1); saveItems(items); renderList();
+        });
+        const res = computeFor(it);
+        el.querySelector('[data-role="preview"]').textContent = res ? `${res.label} (현재 기준 ${res.days}일)` : '';
+        list.appendChild(el);
+      });
+    }
+
+    function computeFor(it){
+      const now = new Date();
+      let base = new Date(now);
+      let target = new Date(it.target);
+      if(it.countMode==='midnight'){ base.setHours(0,0,0,0); target.setHours(0,0,0,0); }
+      let diffMs = target - base; let sign = Math.sign(diffMs); let days;
+      if(it.bizOnly){
+        const a = sign>=0 ? base : target; const b = sign>=0 ? target : base;
+        days = bizDayDiff(a,b);
+      } else {
+        days = Math.floor(Math.abs(diffMs)/86400000) * (sign>=0?1:-1);
+      }
+      if(!it.includeToday){ if(sign>0) days+=1; else if(sign<0) days-=1; }
+      const label = (days===0)?'D‑day': (days>0?`D‑${days}`:`D+${Math.abs(days)}`);
+      return {label, days};
+    }
+
+    // SAVE CURRENT TO LIST
+    document.getElementById('saveItem').addEventListener('click', ()=>{
+      const data = parseInputs(); if(!data){ alert('날짜를 먼저 선택해 주세요.'); return; }
+      const it = {
+        title: document.getElementById('title').value.trim(),
+        dateStr: document.getElementById('date').value,
+        timeStr: document.getElementById('time').value || '',
+        countMode: state.countMode,
+        includeToday: state.includeToday,
+        bizOnly: state.bizOnly,
+        target: (new Date(data.dateStr + (data.timeStr?`T${data.timeStr}`:'T00:00'))).toISOString()
+      };
+      const items = loadItems(); items.push(it); saveItems(items); renderList();
+    });
+
+    // BULK ADD
+    const bulkDlg = document.getElementById('bulkDlg');
+    document.getElementById('bulkBtn').addEventListener('click', ()=>{
+      document.getElementById('bulkMode').value = state.countMode;
+      document.getElementById('bulkInc').setAttribute('aria-pressed', String(true));
+      document.getElementById('bulkBiz').setAttribute('aria-pressed', String(false));
+      bulkDlg.showModal();
+    });
+    document.getElementById('bulkClose').addEventListener('click', ()=>bulkDlg.close());
+    document.getElementById('bulkInc').addEventListener('click', e=> e.currentTarget.setAttribute('aria-pressed', String(e.currentTarget.getAttribute('aria-pressed')!=='true')));
+    document.getElementById('bulkBiz').addEventListener('click', e=> e.currentTarget.setAttribute('aria-pressed', String(e.currentTarget.getAttribute('aria-pressed')!=='true')));
+    document.getElementById('bulkApply').addEventListener('click', ()=>{
+      const lines = document.getElementById('bulkText').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+      if(lines.length===0){ alert('입력된 줄이 없습니다.'); return; }
+      const items = loadItems();
+      const mode = document.getElementById('bulkMode').value;
+      const inc = document.getElementById('bulkInc').getAttribute('aria-pressed')==='true';
+      const biz = document.getElementById('bulkBiz').getAttribute('aria-pressed')==='true';
+      let ok=0, fail=0;
+      lines.forEach(line=>{
+        // "제목, YYYY-MM-DD, HH:MM"
+        const parts = line.split(',').map(s=>s.trim());
+        const title = parts[0]||'';
+        const d = parts[1];
+        const t = parts[2]||'';
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ fail++; return; }
+        const targetISO = (new Date(d + (t?`T${t}`:'T00:00'))).toISOString();
+        items.push({ title, dateStr:d, timeStr:t, countMode:mode, includeToday:inc, bizOnly:biz, target:targetISO });
+        ok++;
+      });
+      saveItems(items); renderList(); bulkDlg.close();
+      alert(`추가 완료: ${ok}건${fail?`, 실패: ${fail}건`:''}`);
+    });
+
+    // EXPORT / IMPORT
+    document.getElementById('exportJson').addEventListener('click', ()=>{
+      const data = JSON.stringify(loadItems(), null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), {href:url, download:'dday-items.json'});
+      a.click(); URL.revokeObjectURL(url);
+    });
+    document.getElementById('importJson').addEventListener('click', ()=>{
+      const inp = document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+      inp.onchange = () => {
+        const f = inp.files[0]; if(!f) return; const fr = new FileReader(); fr.onload = () => {
+          try{ const arr = JSON.parse(fr.result); if(!Array.isArray(arr)) throw 0; saveItems(arr); renderList(); }
+          catch(e){ alert('JSON 형식이 올바르지 않습니다.'); }
+        }; fr.readAsText(f);
+      }; inp.click();
+    });
+
+    // events
+    document.getElementById('calc').addEventListener('click', calc);
+    document.getElementById('title').addEventListener('input', e=>{ if(e.inputType) calc(); });
+    document.getElementById('date').addEventListener('change', calc);
+    document.getElementById('time').addEventListener('change', calc);
+    document.getElementById('countMode').addEventListener('change', e=>{ state.countMode = e.target.value; calc(); });
+
+    document.getElementById('toggleInclude').addEventListener('click', e=>{
+      state.includeToday = !state.includeToday;
+      e.currentTarget.setAttribute('aria-pressed', String(state.includeToday));
+      calc();
+    });
+    document.getElementById('toggleBiz').addEventListener('click', e=>{
+      state.bizOnly = !state.bizOnly;
+      e.currentTarget.setAttribute('aria-pressed', String(state.bizOnly));
+      calc();
+    });
+
+    $$('.chip[data-preset]').forEach(btn=>btn.addEventListener('click',()=>applyPreset(btn.dataset.preset)));
+
+    document.getElementById('share').addEventListener('click', async ()=>{
+      const url = location.origin + location.pathname + '?' + toQuery();
+      try{
+        await navigator.clipboard.writeText(url);
+        document.getElementById('share').textContent = '복사됨!';
+        setTimeout(()=>document.getElementById('share').textContent='링크 복사',1400);
+      }catch(err){
+        prompt('이 링크를 복사하세요', url);
+      }
+    });
+
+    document.getElementById('reset').addEventListener('click', ()=>{
+      document.getElementById('title').value=''; document.getElementById('date').value=''; document.getElementById('time').value='';
+      state.includeToday = true; state.bizOnly=false; state.countMode='midnight';
+      document.getElementById('countMode').value='midnight';
+      document.getElementById('toggleInclude').setAttribute('aria-pressed','true');
+      document.getElementById('toggleBiz').setAttribute('aria-pressed','false');
+      calc();
+      history.replaceState(null,'',location.pathname);
+    });
+
+    document.getElementById('snapToday').addEventListener('click', ()=>{ state.countMode='midnight'; document.getElementById('countMode').value='midnight'; calc(); });
+    document.getElementById('snapNow').addEventListener('click', ()=>{ state.countMode='exact'; document.getElementById('countMode').value='exact'; calc(); });
+
+    // init
+    applyThemeFromStorage();
+    applyFontFromStorage();
+    updateHeaderClock();
+    setInterval(updateHeaderClock, 1000);
+    fromQuery();
+    calc();
+    renderList();
+  </script>
+</body>
+</html>

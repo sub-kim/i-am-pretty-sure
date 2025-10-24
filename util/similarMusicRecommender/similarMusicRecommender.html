@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🎲 유사 음악 추천기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- YouTube IFrame Player API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <style>
+    :root{
+      /* default: dark */
+      --bg: #0b1220;            /* slate-950-ish */
+      --text: #e5e7eb;          /* slate-200 */
+      --muted: #94a3b8;         /* slate-400 */
+      --panel: rgba(15,23,42,.6);/* slate-900/60 */
+      --panelHover:#0f172a;     /* slate-900 */
+      --ring: rgba(255,255,255,.06);
+      --chip:#1f2937;           /* slate-800 */
+      --btn:#1f2937;
+      --dock:#0b1220ee;
+    }
+    .light{
+      --bg: #ffffff;
+      --text:#0f172a;           /* slate-900 */
+      --muted:#334155;          /* slate-700 */
+      --panel:#f1f5f9;          /* slate-100 */
+      --panelHover:#e2e8f0;     /* slate-200 */
+      --ring: rgba(0,0,0,.08);
+      --chip:#e5e7eb;           /* slate-200 */
+      --btn:#e2e8f0;            /* slate-200 */
+      --dock:#ffffffee;
+    }
+    html,body{height:100%;}
+    body{background:var(--bg); color:var(--text);}
+    .num{font-variant-numeric:tabular-nums;}
+    .panel{background:var(--panel); border:1px solid var(--ring); border-radius:1rem;}
+    .panel:hover{background:var(--panelHover);}
+    .panel-solid{background:var(--panel); border:1px solid var(--ring);}
+    .chip{background:var(--chip);}
+    .muted{color:var(--muted);}
+    .dock{background:var(--dock); border:1px solid var(--ring);}
+    .btn-ghost{background:var(--btn);}
+    .fade-in{animation:fade-in .25s ease;}
+    @keyframes fade-in{from{opacity:.0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+    /* toggle switch */
+    .switch input{display:none}
+    .switch .track{width:46px;height:26px;border-radius:9999px;background:#334155;position:relative;transition:.2s}
+    .switch .thumb{width:20px;height:20px;border-radius:9999px;background:#fff;position:absolute;top:3px;left:3px;transition:.2s}
+    .switch input:checked + .track{background:#22c55e}
+    .switch input:checked + .track .thumb{left:23px}
+    .light .switch .track{background:#cbd5e1}
+  </style>
+</head>
+<body class="min-h-dvh antialiased">
+  <div class="mx-auto max-w-4xl p-6 space-y-6">
+    <!-- 헤더: 제목 + (우측) 자동재생 / 라이트-다크 -->
+    <header class="flex flex-wrap items-center gap-3 justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold">🎲 유사 음악 추천기</h1>
+        <p class="muted text-sm">좋아하는 노래를 입력하면 비슷한 분위기의 트랙을 추천해요. (Last.fm + Deezer/iTunes + YouTube)</p>
+      </div>
+      <div class="flex items-center gap-3 ml-auto">
+        <!-- 자동재생 토글 (기본 꺼짐) -->
+        <label class="flex items-center gap-2 text-sm">
+          <span class="muted">자동재생</span>
+          <span class="switch inline-flex items-center">
+            <input id="autoplayToggle" type="checkbox" />
+            <span class="track"><span class="thumb"></span></span>
+          </span>
+        </label>
+        <button id="themeBtn" class="px-3 py-1.5 rounded-xl btn-ghost hover:opacity-90 text-sm">라이트/다크</button>
+      </div>
+    </header>
+
+    <!-- 입력 -->
+    <section class="panel p-4 space-y-4">
+      <div class="flex items-end gap-3 flex-wrap">
+        <div class="grow">
+          <label class="block text-sm muted mb-1">🎧 좋아하는 노래 (아티스트 - 곡명)</label>
+          <input id="seedInput" type="text" placeholder="예) IU - Love wins all"
+                 class="w-full px-3 py-2 rounded-xl btn-ghost outline-none focus:ring-2 focus:ring-sky-400" />
+        </div>
+        <button id="searchBtn" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white">유사 곡 찾기</button>
+      </div>
+      <div id="resultMeta" class="text-sm muted"></div>
+	  <!-- 진행 상태 표시 -->
+	  <div id="progressWrap" class="hidden mt-2 rounded-xl border" style="border-color:var(--ring)">
+	    <div class="flex items-center justify-between px-3 py-1 text-xs muted">
+	  	<span id="progressLabel">검색 중입니다. 잠시만 기다려 주세요.</span>
+	  	<span id="progressText" class="num">0%</span>
+	    </div>
+	    <div class="h-2 rounded-b-xl overflow-hidden" style="background:var(--panelHover)">
+	  	<div id="progressBar" class="h-2" style="background:#22c55e; width:0%"></div>
+	    </div>
+	  </div>
+    </section>
+
+    <!-- 유사곡 결과 -->
+    <ol id="resultList" class="space-y-2"></ol>
+  </div>
+
+  <!-- 후보 모달 (썸네일 + ‘선택’ 버튼) -->
+  <div id="candidateModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60"></div>
+    <div class="relative mx-auto mt-24 max-w-2xl rounded-2xl panel-solid p-4 shadow-xl fade-in">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-base font-semibold">정식 음원 후보 · 곡을 선택하세요</h3>
+        <button id="candidateClose" class="text-sm px-3 py-1.5 rounded-lg btn-ghost hover:opacity-90">닫기</button>
+      </div>
+      <ul id="candidateList" class="max-h-[55vh] overflow-auto divide-y" style="--tw-divide-opacity:1;border-color:var(--ring)"></ul>
+      <p class="mt-2 text-xs muted">제목 노이즈 제거 + iTunes/Deezer 검증 (실패해도 후보는 유지).</p>
+    </div>
+  </div>
+
+  <!-- YouTube Dock -->
+  <div id="ytDock" class="fixed inset-x-0 bottom-0 z-40 hidden">
+    <div class="mx-auto max-w-4xl">
+      <div class="m-4 p-3 rounded-2xl dock fade-in">
+        <div class="flex items-center justify-between mb-2">
+          <div id="ytDockTitle" class="text-sm truncate pr-3">YouTube 재생</div>
+          <button id="ytDockClose" class="text-xs px-2 py-1 rounded-lg btn-ghost hover:opacity-90">닫기</button>
+        </div>
+        <div class="aspect-video rounded-xl overflow-hidden" style="background:var(--panelHover)">
+          <div id="ytFrame" class="w-full h-full"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ===== Helpers / State =====
+  const $=(s,e=document)=>e.querySelector(s);
+  const LASTFM_KEY='ec81dd2697a36ab050f6828db024a7b8';
+  let ytPlayer=null,lastSimilar=[], autoplayEnabled=false;
+
+  const toast=m=>{$('#resultMeta').textContent=m;}
+  const isNoisy=t=>/(mv|m\/v|official|live|cover|remix|teaser|shorts|fancam|dance|practice|performance|lyrics)\b/i.test(t||'');
+  const normalize=s=>String(s||'').replace(/(\[[^\]]*\]|\([^)]*\))/g,'').replace(/\s+/g,' ').trim();
+  
+  // ===== Progress HUD =====
+  const Progress = (() => {
+    let timer = null, cur = 0, ceil = 85, label = '검색 중입니다. 잠시만 기다려 주세요.';
+    const wrap = () => $('#progressWrap');
+    const bar  = () => $('#progressBar');
+    const txt  = () => $('#progressText');
+    const lab  = () => $('#progressLabel');
+  
+    function render() {
+      if (!wrap()) return;
+      bar().style.width = `${Math.max(0, Math.min(100, cur))}%`;
+      txt().textContent = `${Math.round(cur)}%`;
+      lab().textContent = label;
+    }
+  
+    return {
+      start(msg = '검색 중입니다. 잠시만 기다려 주세요.', startAt = 3, maxHold = 85, step = 1, ms = 120) {
+        label = msg; cur = startAt; ceil = maxHold;
+        wrap().classList.remove('hidden');
+        clearInterval(timer);
+        render();
+        timer = setInterval(() => {
+          if (cur < ceil) { cur += step; render(); }
+        }, ms);
+      },
+      set(p, msg) {
+        if (typeof msg === 'string') label = msg;
+        cur = Math.max(cur, p);
+        render();
+      },
+      bump(delta = 1) {
+        cur = Math.min(ceil, cur + delta);
+        render();
+      },
+      done(msg = '분석 완료') {
+        label = msg;
+        clearInterval(timer);
+        cur = 100; render();
+        setTimeout(() => { wrap().classList.add('hidden'); }, 600);
+      },
+      hide() {
+        clearInterval(timer);
+        wrap().classList.add('hidden');
+      }
+    };
+  })();
+
+  // ===== Safe iTunes Search (KR→US fallback + timeout) =====
+  async function itunesSearch(artist, track){
+    const term = `${artist||''} ${track||''}`.trim();
+    const build = (cc='KR') => `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=5&country=${cc}`;
+    const withTimeout = (p, ms=4000) => Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))]);
+    try{
+      let r = await withTimeout(fetch(build('KR'), {mode:'cors', cache:'no-store'}));
+      let j = await r.json();
+      if(!j || !j.results || !j.results.length){
+        r = await withTimeout(fetch(build('US'), {mode:'cors', cache:'no-store'}));
+        j = await r.json();
+      }
+      if(!j || !j.results || !j.results.length) return null;
+      const lowT = (track||'').toLowerCase(), lowA = (artist||'').toLowerCase();
+      const hit = j.results.find(x => (x.trackName||'').toLowerCase().includes(lowT) && (x.artistName||'').toLowerCase().includes(lowA)) || j.results[0];
+      return {
+        preview: hit.previewUrl || null,
+        cover: hit.artworkUrl100 ? hit.artworkUrl100.replace('100x100bb','200x200bb') : null,
+        itunesUrl: hit.trackViewUrl || null,
+        durationMs: hit.trackTimeMillis || null,
+        genre: hit.primaryGenreName || null
+      };
+    }catch(e){
+      return null; // 실패해도 흐름 유지
+    }
+  }
+
+  // ===== APIs =====
+  const API={
+    search:(artist,track)=>{
+      const params={method:'track.search',track,api_key:LASTFM_KEY,format:'json',limit:20};
+      if(artist) params.artist=artist;
+      return fetch('https://ws.audioscrobbler.com/2.0/?'+new URLSearchParams(params))
+        .then(r=>r.json()).then(j=>(((j.results||{}).trackmatches||{}).track||[]));
+    },
+    similar:(artist,track)=>{
+      const params={method:'track.getSimilar',artist,track,api_key:LASTFM_KEY,format:'json',limit:100,autocorrect:1};
+      return fetch('https://ws.audioscrobbler.com/2.0/?'+new URLSearchParams(params))
+        .then(r=>r.json()).then(j=>(j.similartracks&&j.similartracks.track)||[]);
+    },
+    deezer:(artist,track)=>{
+      const q=(artist||'')+' '+(track||'');
+      return fetch('https://api.deezer.com/search?q='+encodeURIComponent(q))
+        .then(r=>r.json()).then(j=>{
+          if(!j || !j.data || !j.data.length) return null;
+          const h=j.data[0];
+          return { preview:h.preview||null, cover:(h.album&&(h.album.cover_medium||h.album.cover))||null, deezerUrl:h.link||null };
+        }).catch(()=>null);
+    }
+  };
+
+  // ===== YouTube (embed → popup fallback) =====
+  function sanitizeForEmbed(q){return String(q||'').replace(/(^|\s)-\S+/g,'').replace(/["']/g,'').replace(/\s+/g,' ').trim();}
+  function whenYT(cb){ if(window.YT && YT.Player) return cb(); let i=setInterval(()=>{ if(window.YT && YT.Player){ clearInterval(i); cb(); } },100); }
+  function openPopup(q){ window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(q),'_blank','popup=yes,width=560,height=315,resizable=yes'); }
+  function ensureYtPlayer(q){
+    $('#ytDock').classList.remove('hidden');
+    if(ytPlayer && ytPlayer.destroy){ try{ ytPlayer.destroy(); }catch(e){} ytPlayer=null; }
+    whenYT(()=>{ ytPlayer=new YT.Player('ytFrame',{
+      height:'100%', width:'100%',
+      playerVars:{autoplay:1,rel:0,modestbranding:1,playsinline:1,listType:'search',list:sanitizeForEmbed(q)},
+      events:{ onError:(ev)=>{ if([5,101,150].includes(ev?.data)){ openPopup(q); closeDock(); } } }
+    }); });
+  }
+  function openDock(title,q){ $('#ytDockTitle').textContent=title+' · YouTube'; ensureYtPlayer(q); }
+  function closeDock(){ if(ytPlayer && ytPlayer.destroy){ try{ ytPlayer.destroy();}catch(e){} } ytPlayer=null; $('#ytDock').classList.add('hidden'); }
+
+  // ===== 한줄 분위기 생성 (장르 없을 때도 보장) =====
+  function inferVibe(artist, track, genre){
+    const base = `${artist||''} ${track||''}`.toLowerCase();
+    const g = (genre||'').toLowerCase();
+    const says = (msg)=> `${msg} 유사 곡을 찾고 있습니다...`;
+
+    if(g.includes('jazz') && g.includes('pop')) return says('리듬감이 좋은 재즈풍 팝을 선호하시는군요!');
+    if(g.includes('jazz')) return says('감성적인 재즈 스타일을 선호하시는군요!');
+    if(g.includes('dance')||g.includes('edm')||g.includes('house')) return says('비트가 살아있는 일렉/댄스 느낌 좋아하시네요!');
+    if(g.includes('k-pop')||g.includes('pop')) return says('멜로디가 좋은 팝 성향이시네요!');
+    if(g.includes('rock')||g.includes('metal')) return says('에너지 넘치는 록 성향이시네요!');
+    if(g.includes('r&b')||g.includes('soul')) return says('부드러운 R&B/소울 감성을 선호하시네요!');
+    if(g.includes('hip')||g.includes('rap')) return says('그루브한 힙합 바이브를 좋아하시네요!');
+    if(g.includes('acoustic')||g.includes('folk')) return says('잔잔한 어쿠스틱 감성을 선호하시네요!');
+    if(g.includes('ballad')) return says('감성적인 발라드 취향이시네요!');
+
+    // 키워드 기반 추정(장르 없을 때)
+    if(/bossa|swing|jazz/.test(base)) return says('재즈 무드가 느껴지는 선곡이네요!');
+    if(/acoustic|unplugged|guitar|piano/.test(base)) return says('어쿠스틱한 감성을 좋아하시네요!');
+    if(/remix|club|dance|edm|house/.test(base)) return says('댄스/리믹스 바이브 좋아하시네요!');
+    if(/ballad|slow|love|lullaby/.test(base)) return says('서정적인 발라드 무드를 선호하시네요!');
+    return says('멋진 선택이에요!');
+  }
+
+  // ===== UI builders =====
+  function makeItem(t){
+    const li=document.createElement('li');
+    li.className='group flex items-center justify-between gap-3 panel px-4 py-3 fade-in';
+
+    const left=document.createElement('div'); left.className='flex items-center gap-3 min-w-0';
+    const img=document.createElement('img'); img.className='w-12 h-12 rounded-lg object-cover'; img.style.background='var(--panelHover)';
+    img.src=t.cover || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2296%22 height=%2296%22 fill=%22none%22><rect width=%2296%22 height=%2296%22 fill=%22%23222%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23aaa%22 font-size=%2212%22>♪</text></svg>';
+    const text=document.createElement('div'); text.className='min-w-0';
+    const ttl=document.createElement('div'); ttl.className='font-medium truncate'; ttl.textContent=(t.artist||'')+' — '+(t.name||'');
+    const sub=document.createElement('div'); sub.className='text-xs muted'; sub.innerHTML='유사도(match): <span class="num">'+String((t.match*100||0).toFixed(0))+'%</span>';
+    text.appendChild(ttl); text.appendChild(sub);
+    left.appendChild(img); left.appendChild(text);
+
+    const actions=document.createElement('div'); actions.className='flex items-center gap-2';
+    if(t.preview){
+      const audio=document.createElement('audio'); audio.src=t.preview; audio.preload='none'; audio.className='hidden';
+      const btn=document.createElement('button'); btn.className='text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white'; btn.textContent='▶︎ 30s';
+      let playing=false;
+      btn.addEventListener('click',()=>{ if(!playing){ audio.play(); btn.textContent='⏸︎ 30s'; playing=true; } else { audio.pause(); audio.currentTime=0; btn.textContent='▶︎ 30s'; playing=false; } });
+      audio.addEventListener('ended',()=>{ btn.textContent='▶︎ 30s'; playing=false; });
+      actions.appendChild(btn); actions.appendChild(audio);
+    }
+    const yq=(t.artist||'')+' '+(t.name||'')+' audio';
+    const yBtn=document.createElement('button'); yBtn.className='text-xs px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white'; yBtn.textContent='YouTube ▶';
+    yBtn.addEventListener('click',()=>openDock((t.artist||'')+' — '+(t.name||''), yq));
+    actions.appendChild(yBtn);
+
+    const aLF=document.createElement('a'); aLF.href=t.url||'#'; aLF.target='_blank'; aLF.className='text-xs px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white'; aLF.textContent='Last.fm';
+    actions.appendChild(aLF);
+
+    li.appendChild(left); li.appendChild(actions);
+    return li;
+  }
+
+  // ===== 후보 모달 =====
+  function showCandidates(items){
+    const ul=$('#candidateList'); ul.innerHTML='';
+    items.forEach((it)=>{
+      const li=document.createElement('li'); li.className='flex items-center justify-between gap-3 p-3 hover:opacity-90 cursor-pointer';
+      li.innerHTML=`<div class="flex items-center gap-3 min-w-0">
+        <img src="${it.cover||''}" class="w-12 h-12 rounded-md object-cover" style="background:var(--panelHover)"/>
+        <div class="min-w-0">
+          <div class="font-medium truncate">${it.artist} — ${it.name}</div>
+        </div>
+      </div>
+      <button class="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex-none">선택</button>`;
+
+      const choose=async ()=>{
+        hideCandidates();
+        // (3) 한줄 메시지: 항상 표시되도록 보장
+        const itn = await itunesSearch(it.artist, it.name);
+        const msg = inferVibe(it.artist, it.name, itn?.genre);
+        toast(msg);
+        // 유사곡 로드 (자동재생은 토글에 따름)
+        startSimilar(it.artist, it.name, autoplayEnabled);
+      };
+      li.addEventListener('click', choose);
+      li.querySelector('button').addEventListener('click', (e)=>{ e.stopPropagation(); choose(); });
+      ul.appendChild(li);
+    });
+    $('#candidateModal').classList.remove('hidden');
+  }
+  function hideCandidates(){ $('#candidateModal').classList.add('hidden'); }
+
+  // ===== 흐름 =====
+  async function runSearch(){
+    const raw=$('#seedInput').value.trim();
+    if(!raw){ toast('입력해 주세요'); return; }
+  
+    // 진행 바 시작
+    Progress.start('검색 중입니다. 잠시만 기다려 주세요.', 3, 82, 1, 100);
+    toast(`검색어 ${raw} 분석 중…`);
+  
+    let artist=null, track=raw;
+    if(raw.includes(' - ')){ const parts=raw.split(' - '); artist=(parts[0]||'').trim(); track=(parts.slice(1).join(' - ')||'').trim(); }
+    const cleaned = normalize(track);
+  
+    // ① Last.fm 검색 (대기 구간: 3% → 82% 사이에서 자동 증가)
+    let hits = await API.search(artist, track).catch(()=>[]);
+    if(!hits?.length && cleaned!==track) hits = await API.search(artist, cleaned).catch(()=>[]);
+    if(!hits?.length && cleaned!==track) hits = await API.search(null, cleaned).catch(()=>[]);
+  
+    if(!hits?.length){
+      Progress.done('결과 없음');
+      toast('검색 결과가 없어요');
+      return;
+    }
+  
+    // ② 후보 정리 시작
+    Progress.set(86, '후보 정리 중…'); // 검색 완료 시점 퍼센트 업
+  
+    const base = hits.filter(h=>{
+      if(!h || !h.name) return false;
+      if(isNoisy(h.name)) return false;
+      if(artist){
+        const a=(h.artist||'').toLowerCase();
+        if(a && !a.includes(artist.toLowerCase())) return false;
+      }
+      return true;
+    });
+  
+    if(!base.length){
+      Progress.done('결과 없음');
+      toast('후보가 없어요');
+      return;
+    }
+  
+    // ③ 보강(enrich) 진행률: 남은 14%대에서 분배
+    const enriched=[];
+    const total = base.length;
+    const perHit = total ? Math.max(0.8, 14 / total) : 14; // hit마다 +0.8% 이상
+    for(const h of base){
+      const it = await itunesSearch(h.artist, h.name);
+      if(it){ h.cover = it.cover || h.cover; h.itunesUrl = it.itunesUrl; enriched.push(h); }
+      else{
+        const dz = await API.deezer(h.artist, h.name);
+        if(dz){ h.cover = dz.cover || h.cover; h.deezerUrl = dz.deezerUrl; enriched.push(h); }
+        else { enriched.push(h); }
+      }
+      Progress.bump(perHit);
+    }
+  
+    if(!enriched.length){
+      Progress.done('결과 없음');
+      toast('후보가 없어요');
+      return;
+    }
+  
+    // ④ 완료
+    Progress.done('분석 완료');
+    showCandidates(enriched);
+  }
+
+
+  async function startSimilar(artist, track, autoplayFirst){
+    toast(`유사곡 수집 중: ${artist} — ${track}`);
+    const sim = await API.similar(artist, track);
+    if(!sim?.length){ toast('유사곡이 없어요'); return; }
+
+    // 유사도 내림차순
+    lastSimilar = sim.map(t=>({ name:t.name, artist:(t.artist?.name)||t.artist, match:Number(t.match||0), url:t.url }))
+                     .sort((a,b)=>(b.match||0)-(a.match||0));
+
+    const ul=$('#resultList'); ul.innerHTML='';
+    let idx=0, chunk=6;
+
+    const step=async ()=>{
+      const slice = lastSimilar.slice(idx, idx+chunk);
+      if(!slice.length){ toast(`완료 · 총 ${lastSimilar.length}곡`); return; }
+
+      const filled = await Promise.all(slice.map(async t=>{
+        const it = await itunesSearch(t.artist, t.name);
+        if(it){ t.preview = t.preview || it.preview; t.cover = t.cover || it.cover; t.itunesUrl = it.itunesUrl || t.itunesUrl; }
+        else{
+          const dz = await API.deezer(t.artist, t.name);
+          if(dz){ t.preview = t.preview || dz.preview; t.cover = t.cover || dz.cover; t.deezerUrl = dz.deezerUrl || t.deezerUrl; }
+        }
+        return t;
+      }));
+
+      filled.forEach(item=>ul.appendChild(makeItem(item)));
+      toast(`처리 ${Math.min(idx+filled.length, lastSimilar.length)}/${lastSimilar.length}`);
+      idx += chunk;
+      requestAnimationFrame(step);
+    };
+
+    step();
+
+    if(autoplayFirst && lastSimilar.length){
+      const f=lastSimilar[0];
+      openDock(`${f.artist} — ${f.name}`, `${f.artist} ${f.name} audio`);
+    }
+  }
+
+  // ===== Events =====
+  $('#autoplayToggle').addEventListener('change', (e)=>{ autoplayEnabled = e.target.checked; });
+  $('#searchBtn').addEventListener('click', runSearch);
+  $('#seedInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runSearch(); } });
+  $('#candidateClose').addEventListener('click', hideCandidates);
+  $('#ytDockClose').addEventListener('click', closeDock);
+  $('#themeBtn').addEventListener('click', ()=>{
+    document.documentElement.classList.toggle('light');
+  });
+  </script>
+</body>
+</html>
