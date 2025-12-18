@@ -1,3 +1,5 @@
+package korean6quiz.test;
+
 /**
  * @author 설연수(https://secr.tistory.com/207)
  * @version 1.0
